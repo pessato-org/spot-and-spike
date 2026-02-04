@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductById } from '@/data/products';
+import Stripe from 'stripe';
 
-// Stripe will be imported when keys are configured
-// import Stripe from 'stripe';
-
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-//   apiVersion: '2023-10-16',
-// });
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(key);
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
     const body = await request.json();
     const { items, customer } = body;
 
@@ -63,31 +66,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // TODO: Create Stripe Checkout Session when keys are configured
-    // const session = await stripe.checkout.sessions.create({
-    //   payment_method_types: ['card'],
-    //   line_items: lineItems,
-    //   mode: 'payment',
-    //   success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    //   cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout`,
-    //   customer_email: customer.email,
-    //   shipping_address_collection: {
-    //     allowed_countries: ['AU'],
-    //   },
-    //   metadata: {
-    //     customer_name: `${customer.firstName} ${customer.lastName}`,
-    //     customer_phone: customer.phone || '',
-    //   },
-    // });
-    //
-    // return NextResponse.json({ url: session.url });
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout`,
+      customer_email: customer.email,
+      shipping_address_collection: {
+        allowed_countries: ['AU'],
+      },
+      metadata: {
+        customer_name: `${customer.firstName} ${customer.lastName}`,
+        customer_phone: customer.phone || '',
+      },
+    });
 
-    // Placeholder response until Stripe is configured
-    return NextResponse.json({
-      error: 'Stripe not configured. Add STRIPE_SECRET_KEY to enable checkout.',
-      message: 'This is a demo. Stripe integration is ready but requires API keys.',
-      lineItems: lineItems, // Return line items for debugging
-    }, { status: 503 });
+    return NextResponse.json({ url: session.url });
 
   } catch (error) {
     console.error('Checkout error:', error);
